@@ -1,0 +1,15 @@
+[listen]
+ssl = false
+cert = "wildcard_certificate"
+key = "wildcard_key"
+port = 8081
+
+[remote]
+port = 8080
+
+[ldap]
+host = "LDAP server"
+port = 389
+base = "cn=users,dc=example,dc=com"
+binddn = "cn=users,dc=example,dc=com"
+bindpassword = "some password"
