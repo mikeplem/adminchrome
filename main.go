@@ -74,8 +74,7 @@ func login(res http.ResponseWriter, req *http.Request) {
 
 	if authenticated {
 
-		//tvToSend := fmt.Sprintf("http://%s.hq.crosschx.com:%d", tv, Config.Remote.Port)
-		tvToSend := fmt.Sprintf("http://localhost:%d/open", Config.Remote.Port)
+		tvToSend := fmt.Sprintf("http://%s.hq.crosschx.com:%d", tv, Config.Remote.Port)
 
 		fmt.Printf("Sending the following: %v, %v\n", tvToSend, postData)
 
