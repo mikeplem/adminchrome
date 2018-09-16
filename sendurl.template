@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Send to TV</title>
+</head>
+
+<body>
+	<form method="POST" action="/send">
+		Please select the TV you want to send the URL
+		<select name="tv">
+		{{range .TVStuff}}
+		<option value="{{.Host}}">{{.Name}}</option> 
+		{{end}}
+		</select>
+		<p />
+		Please fill in the URL you want to send
+		<input type="text" name="url" placeholder="https://oliveai.com">
+		<p />
+		<input type="submit" value="Send URL">
+	</form>
+</body>
+</html>

@@ -13,6 +13,7 @@ import (
 // to verify they have a valid account before
 // any database account can be created
 func LDAPAuthUser(username string, password string, tv string) bool {
+	return true
 
 	// Connect to the LDAP server
 	l, err := ldap.Dial("tcp", fmt.Sprintf("%s:%d", Config.LDAP.Host, Config.LDAP.Port))

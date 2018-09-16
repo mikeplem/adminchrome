@@ -13,3 +13,17 @@ port = 389
 base = "cn=users,dc=example,dc=com"
 binddn = "cn=users,dc=example,dc=com"
 bindpassword = "some password"
+
+[tv]
+
+	[tv.tv1]
+	name = "TV 1"
+	host = "tv1"
+
+	[tv.tv2]
+	name = "TV 2"
+	host = "tv2"
+
+	[tv.tv3]
+	name = "TV 3"
+	host = "tv3"
