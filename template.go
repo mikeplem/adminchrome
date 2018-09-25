@@ -20,7 +20,7 @@ func ParseTemplate(templateName string, fileName string) {
 		return
 	}
 
-	err = t.Execute(f, data)
+	err = t.Execute(f, Config)
 	if err != nil {
 		log.Print("execute: ", err)
 		return

@@ -49,12 +49,6 @@ type tvlist struct {
 	Host string
 }
 
-type tvData struct {
-	TVStuff []tvlist
-}
-
-var data tvData
-
 func showMessageAndRedirect(res http.ResponseWriter, message string) {
 	bodyHead := "<html><head><meta http-equiv='refresh' content='5;url=/login.html'></head><body>"
 	body := message
@@ -64,13 +58,15 @@ func showMessageAndRedirect(res http.ResponseWriter, message string) {
 
 func homePage(res http.ResponseWriter, req *http.Request) {
 	fmt.Println("login.html requested")
-	http.ServeFile(res, req, "login.html")
+	//http.ServeFile(res, req, "login.html")
+	http.ServeFile(res, req, "sendurl.html")
 }
 
 func login(res http.ResponseWriter, req *http.Request) {
 	if req.Method != "POST" {
 		fmt.Println("login.html requested")
-		http.ServeFile(res, req, "login.html")
+		//http.ServeFile(res, req, "login.html")
+		http.ServeFile(res, req, "sendurl.html")
 		return
 	}
 
@@ -88,7 +84,8 @@ func login(res http.ResponseWriter, req *http.Request) {
 
 	if authenticated {
 
-		tvToSend := fmt.Sprintf("http://%s.hq.crosschx.com:%d/open", tv, Config.Remote.Port)
+		//tvToSend := fmt.Sprintf("http://%s.hq.crosschx.com:%d/open", tv, Config.Remote.Port)
+		tvToSend := fmt.Sprintf("http://%s:%d/open", tv, Config.Remote.Port)
 
 		fmt.Printf("Sending the following: %v, %v\n", tvToSend, postData)
 
@@ -115,18 +112,6 @@ func init() {
 
 	if _, err := toml.DecodeFile(*ConfigFile, &Config); err != nil {
 		log.Fatal(err)
-	}
-
-	data = tvData{
-		TVStuff: []tvlist{
-			{Name: "TV 1", Host: "tv1"},
-			{Name: "TV 2", Host: "tv2"},
-			{Name: "TV 3", Host: "tv3"},
-			{Name: "TV 4", Host: "tv4"},
-			{Name: "TV 5", Host: "tv5"},
-			{Name: "TV 6", Host: "tv6"},
-			{Name: "TV 7", Host: "tv7"},
-		},
 	}
 
 	ParseTemplate("sendurl.template", "sendurl.html")

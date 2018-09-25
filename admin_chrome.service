@@ -1,0 +1,11 @@
+[Unit]
+Description=Admin Chrome Control
+
+[Service]
+WorkingDirectory=/opt/adminchrome/
+ExecStart=/opt/adminchrome/adminchrome_linux -conf /opt/adminchrome/test.toml
+RestartSec=5
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
