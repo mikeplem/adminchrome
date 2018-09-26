@@ -4,7 +4,15 @@ This program is used as a central front end to open a URL of a Chromium browser 
 
 ## Depends
 
-This program depends upon, https://github.com/go-ldap/ldap.  This is the LDAP library used.
+This program depends upon
+
+* github.com/BurntSushi/toml
+
+* github.com/go-ldap/ldap
+
+* github.com/satori/go.uuid
+
+Auth help from https://www.sohamkamani.com/blog/2018/03/25/golang-session-authentication/
 
 ## Requirements
 
