@@ -87,7 +87,7 @@ func LDAPAuthUser(username string, password string) (bool, []string) {
 	for _, entry := range sr.Entries {
 		for _, groupDN := range entry.GetAttributeValues("memberOf") {
 			memberAttr := fmt.Sprint(groupDN)
-			// memberAttr = cn=hqX,cn=groups,cn=accounts,dc=mgmt,dc=crosschx,dc=com
+			// memberAttr = cn=hqX,cn=groups,cn=accounts,dc=mgmt,dc=example,dc=com
 			if strings.Contains(memberAttr, "cn=hqtv") {
 				removePrefix := strings.TrimPrefix(memberAttr, "cn=")
 				removeSuffix := strings.TrimSuffix(removePrefix, Config.LDAP.GroupBase)

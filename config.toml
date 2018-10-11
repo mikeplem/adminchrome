@@ -8,22 +8,23 @@ port = 8081
 port = 8080
 
 [ldap]
-host = "LDAP server"
+host = "ldap.example.com"
 port = 389
-base = "cn=users,dc=example,dc=com"
-binddn = "cn=users,dc=example,dc=com"
+base = "cn=users,cn=accounts,dc=example,dc=com"
+groupbase = "cn=groups,cn=accounts,dc=example,dc=com"
+binddn = "cn=users,cn=accounts,dc=example,dc=com"
 bindpassword = "some password"
 
 [tv]
 
-	[tv.tv1]
+	[tv.hqtv1]
 	name = "TV 1"
-	host = "tv1"
+	host = "localhost"
 
-	[tv.tv2]
+	[tv.hqtv2]
 	name = "TV 2"
 	host = "tv2"
 
-	[tv.tv3]
+	[tv.hqtv3]
 	name = "TV 3"
 	host = "tv3"
