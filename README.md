@@ -117,8 +117,8 @@ ldapsearch -x -D "BIND_DN_USER" -W -b "cn=users,cn=accounts,dc=example,dc=com" "
 The group membership would look like the following
 
 ```shell
-memberOf: cn=hqtv1,cn=groups,cn=accounts,dc=mgmt,dc=example,dc=com
-memberOf: cn=hqtvall,cn=groups,cn=accounts,dc=mgmt,dc=example,dc=com
+memberOf: cn=hqtv1,cn=groups,cn=accounts,dc=example,dc=com
+memberOf: cn=hqtvall,cn=groups,cn=accounts,dc=example,dc=com
 ```
 
 The LDAP `groupbase` is used to strip that part of the DN off the LDAP query results so that only the actual group name is returned and used to build the page used for TV selection for sending a URL.
