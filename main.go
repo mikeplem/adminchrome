@@ -7,11 +7,14 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/BurntSushi/toml"
 	"github.com/satori/go.uuid"
 )
+
+// ======================
 
 // ConfigFile holds the user supplied configuration file - it is placed here since it is a global
 var ConfigFile *string
@@ -19,21 +22,11 @@ var ConfigFile *string
 // Config is the structure of the TOML config structure
 var Config tomlConfig
 
-// allowedTvs holds the slice of TVs the user is allowed to access
-var allowedTvs = make([]string, 0)
-
-// validTV will contain only the TVs a user is allowed to access
-var validTV tvConfig
-
 type tomlConfig struct {
 	Listen listenconfig `toml:"listen"`
 	LDAP   ldapconfig   `toml:"ldap"`
 	Remote remoteconfig `toml:"remote"`
-	TV     map[string]tvlist
-}
-
-type tvConfig struct {
-	TV map[string]tvlist
+	TV     map[string]tvconfig
 }
 
 type listenconfig struct {
@@ -56,10 +49,18 @@ type ldapconfig struct {
 	BindPassword string
 }
 
-type tvlist struct {
+type tvconfig struct {
 	Name string
 	Host string
 }
+
+// struct and vars used to hold TVs allowed by the user
+type userTVs struct {
+	TV []tvconfig
+}
+
+var showTVs = []tvconfig{}
+var tvDropDown = userTVs{TV: showTVs}
 
 // ======================
 
@@ -112,12 +113,12 @@ const tvTpl = `
 
 // ========================
 
-func showMessageAndRedirect(res http.ResponseWriter, message string, location string) {
-	log.Printf("Redirecting: sending to %s\n", location)
-	bodyHead := fmt.Sprintf("<html><head><meta http-equiv='refresh' content='5;url=%s'></head><body>", location)
-	body := message
-	bodyTail := "</body></html>"
-	res.Write([]byte(bodyHead + body + bodyTail))
+// method used to add user allowed TVs to struct for use
+// with the html dropdown template for sending a URL to
+// a TV
+func (t *userTVs) AddItem(item tvconfig) []tvconfig {
+	t.TV = append(t.TV, item)
+	return t.TV
 }
 
 func homePage(res http.ResponseWriter, req *http.Request) {
@@ -136,23 +137,23 @@ func homePage(res http.ResponseWriter, req *http.Request) {
 
 func login(res http.ResponseWriter, req *http.Request) {
 
+	var userAllowedTVs []string
+
 	formUsername := req.FormValue("username")
 	formPassword := req.FormValue("password")
 
 	log.Printf("Logging in with user: %s\n", formUsername)
 
-	authenticated := LDAPAuthUser(formUsername, formPassword)
+	authenticated, userAllowedTVs := LDAPAuthUser(formUsername, formPassword)
 
-	if len(authenticated) > 0 {
+	if authenticated {
 
-		// this is not correct but i want to create a new struct that will have only
-		// the allowed TVs used in the template
 		for tvKey, tvValue := range Config.TV {
-			for _, authValue := range authenticated {
-				if tvKey == authValue {
-					fmt.Printf("TVkey: %s, tvValue.Name: %s, tvValue.Host: %s\n", tvKey, tvValue.Name, tvValue.Host)
-					validTV.TV.Name = tvValue.Name
-					validTV.TV.Host = tvValue.Host
+			for _, authValue := range userAllowedTVs {
+				authValue = strings.Replace(authValue, ",", "", -1)
+				if (tvKey == authValue) || (authValue == "hqtvall") {
+					tvEntry := tvconfig{Name: tvValue.Name, Host: tvValue.Host}
+					tvDropDown.AddItem(tvEntry)
 				}
 			}
 		}
@@ -172,19 +173,19 @@ func login(res http.ResponseWriter, req *http.Request) {
 			Expires: time.Now().Add(120 * time.Second),
 		})
 
-		log.Printf("login cookie set with token: %s\n", sessionToken.String())
+		//log.Printf("login cookie set with token: %s\n", sessionToken.String())
 		log.Println("/login redirect to /tv")
 		http.Redirect(res, req, "/tv", 302)
 
 	} else {
-		log.Println("authenticated returned a zero size slice")
+		log.Println("User did not authenticate.")
 		http.Redirect(res, req, "/", 302)
 	}
 
 }
 
-func tv(res http.ResponseWriter, req *http.Request) {
-	c, err := req.Cookie("session_token")
+func listTVs(res http.ResponseWriter, req *http.Request) {
+	_, err := req.Cookie("session_token")
 	if err != nil {
 		if err == http.ErrNoCookie {
 			log.Println("tv: cookie not set")
@@ -195,9 +196,8 @@ func tv(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	sessionToken := c.Value
-
-	log.Printf("tv: sessionToken: %s\n", sessionToken)
+	//sessionToken := c.Value
+	//log.Printf("tv: sessionToken: %s\n", sessionToken)
 
 	t, err := template.New("webpage").Parse(tvTpl)
 	if err != nil {
@@ -205,7 +205,7 @@ func tv(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	err = t.Execute(res, Config)
+	err = t.Execute(res, tvDropDown)
 	if err != nil {
 		log.Print("execute: ", err)
 		return
@@ -213,7 +213,7 @@ func tv(res http.ResponseWriter, req *http.Request) {
 }
 
 func sendURL(res http.ResponseWriter, req *http.Request) {
-	c, err := req.Cookie("session_token")
+	_, err := req.Cookie("session_token")
 	if err != nil {
 		if err == http.ErrNoCookie {
 			log.Println("sendURL: cookie not set")
@@ -224,9 +224,8 @@ func sendURL(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	sessionToken := c.Value
-
-	log.Printf("sendURL: sessionToken: %s\n", sessionToken)
+	//sessionToken := c.Value
+	//log.Printf("sendURL: sessionToken: %s\n", sessionToken)
 
 	tv := req.FormValue("tv")
 	urlToBrowser := req.FormValue("url")
@@ -236,7 +235,6 @@ func sendURL(res http.ResponseWriter, req *http.Request) {
 	postData := url.Values{}
 	postData.Set("u", urlToBrowser)
 
-	//tvToSend := fmt.Sprintf("http://%s.hq.crosschx.com:%d/open", tv, Config.Remote.Port)
 	tvToSend := fmt.Sprintf("http://%s:%d/open", tv, Config.Remote.Port)
 
 	log.Printf("Sending the following: %v, %v\n", tvToSend, postData)
@@ -249,30 +247,6 @@ func sendURL(res http.ResponseWriter, req *http.Request) {
 
 	http.Redirect(res, req, "/tv", 302)
 
-}
-
-func refreshToken(res http.ResponseWriter, req *http.Request) {
-	c, err := req.Cookie("session_token")
-	if err != nil {
-		if err == http.ErrNoCookie {
-			log.Println("refreshToken: cookie not set")
-			res.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-		res.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	sessionToken := c.Value
-
-	log.Printf("Refresh: sessionToken: %s\n", sessionToken)
-
-	newSessionToken, err := uuid.NewV4()
-	http.SetCookie(res, &http.Cookie{
-		Name:    "session_token",
-		Value:   newSessionToken.String(),
-		Expires: time.Now().Add(120 * time.Second),
-	})
 }
 
 func init() {
@@ -294,9 +268,8 @@ func main() {
 
 	http.HandleFunc("/", homePage)
 	http.HandleFunc("/login", login)
-	http.HandleFunc("/tv", tv)
+	http.HandleFunc("/tv", listTVs)
 	http.HandleFunc("/sendurl", sendURL)
-	http.HandleFunc("/refresh", refreshToken)
 
 	if Config.Listen.SSL == true {
 		log.Println("Listening on port " + listenPort + " with SSL")
