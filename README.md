@@ -30,6 +30,7 @@ Use the appropriate build_ARCH.sh script
 
 ### LDAP
 
+* Do you desire authentication or not
 * The LDAP server address
 * The LDAP server port
 * The base DN to search for users
@@ -83,10 +84,13 @@ port = 8080
 
 Here you configure the following:
 
+* `useldap` is a boolean which will either enable or disable authentication
 * LDAP Server and port: `host` and `port`
 * `base` is the LDAP DN where user accounts will be searched for.
 * `groupbase` is the LDAP group DN where the search query will look for any group that a user is a member of
 * `binddn` and `bindpassword` is the bind user that will authenticate to LDAP to perform the user search
+
+If authentitcation is disabled then all TVs listed in the configuration toml will be in the selection dropdown.
 
 The code is written to attempt to use StartTLS for the LDAP connection.
 
@@ -94,6 +98,7 @@ The `memberOf` attribute is used to determine group membership.
 
 ```shell
 [ldap]
+useldap = true
 host = "ldap.example.com"
 port = 389
 base = "cn=users,cn=accounts,dc=example,dc=com"

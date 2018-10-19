@@ -41,6 +41,7 @@ type remoteconfig struct {
 }
 
 type ldapconfig struct {
+	UseLDAP      bool
 	Host         string
 	Port         int
 	Base         string
@@ -69,7 +70,15 @@ const loginTpl = `
 <html>
 <head>
 	<title>Browser URL Control</title>
+
+	<style>
+	body {
+		background-color: #d3d4d5;
+		font-size: 16pt;
+	}
+	</style>
 </head>
+
 
 <body>
 	<h1>Browser URL Control</h1>
@@ -92,6 +101,13 @@ const tvTpl = `
 <html>
 <head>
 	<title>Send to TV</title>
+	<style>
+	body {
+		background-color: #d3d4d5;
+		font-size: 16pt;
+	}
+	</style>
+
 </head>
 
 <body>
@@ -122,16 +138,45 @@ func (t *userTVs) AddItem(item tvconfig) []tvconfig {
 }
 
 func homePage(res http.ResponseWriter, req *http.Request) {
-	t, err := template.New("webpage").Parse(loginTpl)
-	if err != nil {
-		log.Print(err)
-		return
-	}
 
-	err = t.Execute(res, Config)
-	if err != nil {
-		log.Print("execute: ", err)
-		return
+	if Config.LDAP.UseLDAP {
+
+		t, err := template.New("webpage").Parse(loginTpl)
+		if err != nil {
+			log.Print(err)
+			return
+		}
+
+		err = t.Execute(res, Config)
+		if err != nil {
+			log.Print("execute: ", err)
+			return
+		}
+	} else {
+
+		// create session token for user
+		sessionToken, err := uuid.NewV4()
+		if err != nil {
+			log.Printf("sessionToken failed to create: %s", err)
+			return
+		}
+
+		// Finally, we set the client cookie for "session_token" as the session token we just generated
+		// we also set an expiry time of 120 seconds
+		http.SetCookie(res, &http.Cookie{
+			Name:    "session_token",
+			Value:   sessionToken.String(),
+			Expires: time.Now().Add(120 * time.Second),
+		})
+
+		for _, tvValue := range Config.TV {
+			tvEntry := tvconfig{Name: tvValue.Name, Host: tvValue.Host}
+			tvDropDown.AddItem(tvEntry)
+		}
+
+		log.Println("/ redirect to /tv")
+		http.Redirect(res, req, "/tv", 302)
+
 	}
 }
 
@@ -146,17 +191,17 @@ func login(res http.ResponseWriter, req *http.Request) {
 
 	authenticated, userAllowedTVs := LDAPAuthUser(formUsername, formPassword)
 
-	if authenticated {
-
-		for tvKey, tvValue := range Config.TV {
-			for _, authValue := range userAllowedTVs {
-				authValue = strings.Replace(authValue, ",", "", -1)
-				if (tvKey == authValue) || (authValue == "hqtvall") {
-					tvEntry := tvconfig{Name: tvValue.Name, Host: tvValue.Host}
-					tvDropDown.AddItem(tvEntry)
-				}
+	for tvKey, tvValue := range Config.TV {
+		for _, authValue := range userAllowedTVs {
+			authValue = strings.Replace(authValue, ",", "", -1)
+			if (tvKey == authValue) || (authValue == "hqtvall") {
+				tvEntry := tvconfig{Name: tvValue.Name, Host: tvValue.Host}
+				tvDropDown.AddItem(tvEntry)
 			}
 		}
+	}
+
+	if authenticated {
 
 		// create session token for user
 		sessionToken, err := uuid.NewV4()
@@ -258,6 +303,8 @@ func init() {
 	if _, err := toml.DecodeFile(*ConfigFile, &Config); err != nil {
 		log.Fatal(err)
 	}
+
+	log.Println("Authentication has been disabled by the configuration.")
 
 }
 
