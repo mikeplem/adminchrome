@@ -1,3 +1,5 @@
+# openssl req -newkey rsa:2048 -nodes -keyout wildcard_key -x509 -days 3650 -out wildcard_certificate
+
 [listen]
 ssl = false
 cert = "wildcard_certificate"
