@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"html/template"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -169,11 +170,6 @@ func homePage(res http.ResponseWriter, req *http.Request) {
 			Expires: time.Now().Add(120 * time.Second),
 		})
 
-		for _, tvValue := range Config.TV {
-			tvEntry := tvconfig{Name: tvValue.Name, Host: tvValue.Host}
-			tvDropDown.AddItem(tvEntry)
-		}
-
 		log.Println("/ redirect to /tv")
 		http.Redirect(res, req, "/tv", 302)
 
@@ -275,6 +271,16 @@ func sendURL(res http.ResponseWriter, req *http.Request) {
 	tv := req.FormValue("tv")
 	urlToBrowser := req.FormValue("url")
 
+	// is the remote host and port accessible
+	remoteHost := fmt.Sprintf("%s:%d", tv, Config.Remote.Port)
+	conn, err := net.Dial("tcp", remoteHost)
+	if err != nil {
+		log.Println("Connection error:", err)
+		errorHandler(res, req, http.StatusGone)
+		return
+	}
+
+	defer conn.Close()
 	log.Println(urlToBrowser)
 
 	postData := url.Values{}
@@ -286,12 +292,22 @@ func sendURL(res http.ResponseWriter, req *http.Request) {
 
 	resp, err := http.PostForm(tvToSend, postData)
 	if err != nil {
-		panic(err)
+		errorHandler(res, req, http.StatusNotFound)
+		return
 	}
 	defer resp.Body.Close()
-
 	http.Redirect(res, req, "/tv", 302)
 
+}
+
+func errorHandler(res http.ResponseWriter, req *http.Request, status int) {
+	res.WriteHeader(status)
+	switch status {
+	case http.StatusGone:
+		fmt.Fprint(res, "The remote server appears to be down.  Please contact Infrastructure that the TV appears to be down. Please click the back button.")
+	case http.StatusNotFound:
+		fmt.Fprint(res, "The page could not be loaded.")
+	}
 }
 
 func init() {
@@ -304,7 +320,9 @@ func init() {
 		log.Fatal(err)
 	}
 
-	log.Println("Authentication has been disabled by the configuration.")
+	if !Config.LDAP.UseLDAP {
+		log.Println("Authentication has been disabled by the configuration.")
+	}
 
 }
 
@@ -331,5 +349,4 @@ func main() {
 			log.Fatal("ListenAndServe: ", err)
 		}
 	}
-
 }
