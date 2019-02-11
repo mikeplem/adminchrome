@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 )
 
 // ======================
@@ -121,10 +121,38 @@ const tvTpl = `
 		</select>
 		<p />
 		Please fill in the URL you want to send
-		<input type="text" name="url" placeholder="https://oliveai.com">
+		<input type="text" name="url" size="100" placeholder="https://oliveai.com">
+		<p />
+		<div>
+		<input type="checkbox" id="reload" name="reload">
+		<label for="reload">Reload Browser</label>
+		</div>
 		<p />
 		<input type="submit" value="Send URL">
 	</form>
+</body>
+</html>`
+
+const errorTpl = `
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Error</title>
+
+	<style>
+	body {
+		background-color: #d3d4d5;
+		font-size: 16pt;
+	}
+	</style>
+</head>
+
+
+<body>
+	<h1>There was an error</h1>
+	{{ . }} 
+	<p />
+	<a href='/'>Please click here to go back to the main page</a>
 </body>
 </html>`
 
@@ -153,6 +181,7 @@ func homePage(res http.ResponseWriter, req *http.Request) {
 			log.Print("execute: ", err)
 			return
 		}
+
 	} else {
 
 		// create session token for user
@@ -230,10 +259,10 @@ func listTVs(res http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		if err == http.ErrNoCookie {
 			log.Println("tv: cookie not set")
-			res.WriteHeader(http.StatusUnauthorized)
+			errorHandler(res, req, http.StatusUnauthorized)
 			return
 		}
-		res.WriteHeader(http.StatusBadRequest)
+		errorHandler(res, req, http.StatusBadRequest)
 		return
 	}
 
@@ -258,10 +287,10 @@ func sendURL(res http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		if err == http.ErrNoCookie {
 			log.Println("sendURL: cookie not set")
-			res.WriteHeader(http.StatusUnauthorized)
+			errorHandler(res, req, http.StatusUnauthorized)
 			return
 		}
-		res.WriteHeader(http.StatusBadRequest)
+		errorHandler(res, req, http.StatusBadRequest)
 		return
 	}
 
@@ -270,6 +299,7 @@ func sendURL(res http.ResponseWriter, req *http.Request) {
 
 	tv := req.FormValue("tv")
 	urlToBrowser := req.FormValue("url")
+	reloadBrowser := req.FormValue("reload")
 
 	// is the remote host and port accessible
 	remoteHost := fmt.Sprintf("%s:%d", tv, Config.Remote.Port)
@@ -281,33 +311,72 @@ func sendURL(res http.ResponseWriter, req *http.Request) {
 	}
 
 	defer conn.Close()
-	log.Println(urlToBrowser)
 
-	postData := url.Values{}
-	postData.Set("u", urlToBrowser)
+	if reloadBrowser == "on" {
 
-	tvToSend := fmt.Sprintf("http://%s:%d/open", tv, Config.Remote.Port)
+		tvToReload := fmt.Sprintf("http://%s:%d/reload", tv, Config.Remote.Port)
 
-	log.Printf("Sending the following: %v, %v\n", tvToSend, postData)
+		log.Printf("Reloading the browser: %v\n", tvToReload)
 
-	resp, err := http.PostForm(tvToSend, postData)
-	if err != nil {
-		errorHandler(res, req, http.StatusNotFound)
-		return
+		resp, err := http.Get(tvToReload)
+		if err != nil {
+			errorHandler(res, req, http.StatusNotFound)
+			return
+		}
+		defer resp.Body.Close()
+
+		http.Redirect(res, req, "/tv", 302)
+
+	} else {
+
+		log.Println(urlToBrowser)
+
+		postData := url.Values{}
+		postData.Set("u", urlToBrowser)
+
+		tvToSend := fmt.Sprintf("http://%s:%d/open", tv, Config.Remote.Port)
+
+		log.Printf("Sending the following: %v, %v\n", tvToSend, postData)
+
+		resp, err := http.PostForm(tvToSend, postData)
+		if err != nil {
+			errorHandler(res, req, http.StatusNotFound)
+			return
+		}
+		defer resp.Body.Close()
 	}
-	defer resp.Body.Close()
 	http.Redirect(res, req, "/tv", 302)
 
 }
 
 func errorHandler(res http.ResponseWriter, req *http.Request, status int) {
 	res.WriteHeader(status)
+
+	var pageError = ""
+
 	switch status {
 	case http.StatusGone:
-		fmt.Fprint(res, "The remote server appears to be down.  Please contact Infrastructure that the TV appears to be down. Please click the back button.")
+		pageError = "The remote server appears to be down.  Please contact Infrastructure that the TV appears to be down."
 	case http.StatusNotFound:
-		fmt.Fprint(res, "The page could not be loaded.")
+		pageError = "For some reason the page could not be loaded."
+	case http.StatusUnauthorized:
+		pageError = "Either you are not allowed to login via an LDAP group or your session cookie has expired (2 minute lifetime)."
+	case http.StatusBadRequest:
+		pageError = "For some reason that command could be run."
 	}
+
+	t, err := template.New("webpage").Parse(errorTpl)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+
+	err = t.Execute(res, pageError)
+	if err != nil {
+		log.Print("execute: ", err)
+		return
+	}
+
 }
 
 func init() {
@@ -322,6 +391,11 @@ func init() {
 
 	if !Config.LDAP.UseLDAP {
 		log.Println("Authentication has been disabled by the configuration.")
+
+		for _, tvValue := range Config.TV {
+			tvEntry := tvconfig{Name: tvValue.Name, Host: tvValue.Host}
+			tvDropDown.AddItem(tvEntry)
+		}
 	}
 
 }
