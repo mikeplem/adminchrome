@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 
@@ -58,10 +59,16 @@ type tvconfig struct {
 
 // struct and vars used to hold TVs allowed by the user
 type userTVs struct {
-	TV []tvconfig
+	TV tvConfigs
 }
 
-var showTVs = []tvconfig{}
+type tvConfigs []tvconfig
+
+func (t tvConfigs) Len() int           { return len(t) }
+func (t tvConfigs) Swap(i, j int)      { t[i], t[j] = t[j], t[i] }
+func (t tvConfigs) Less(i, j int) bool { return t[i].Name < t[j].Name }
+
+var showTVs = tvConfigs{}
 var tvDropDown = userTVs{TV: showTVs}
 
 // ======================
@@ -216,6 +223,8 @@ func login(res http.ResponseWriter, req *http.Request) {
 
 	authenticated, userAllowedTVs := LDAPAuthUser(formUsername, formPassword)
 
+	tvDropDown = userTVs{}
+
 	for tvKey, tvValue := range Config.TV {
 		for _, authValue := range userAllowedTVs {
 			authValue = strings.Replace(authValue, ",", "", -1)
@@ -225,6 +234,8 @@ func login(res http.ResponseWriter, req *http.Request) {
 			}
 		}
 	}
+
+	sort.Sort(tvDropDown.TV)
 
 	if authenticated {
 
