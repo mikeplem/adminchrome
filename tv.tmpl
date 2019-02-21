@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Send to TV</title>
+	<style>
+	body {
+		background-color: #d3d4d5;
+		font-size: 16pt;
+	}
+	</style>
+
+</head>
+
+<body>
+	<form method="POST" action="/sendurl">
+		Please select the TV you want to send the URL
+		<select name="tv">
+		{{ range .TV -}}
+		<option value="{{.Host}}">{{.Name}}</option> 
+		{{ end }}
+		</select>
+		<p />
+		Please fill in the URL you want to send
+		<input type="text" name="url" size="100" placeholder="https://oliveai.com">
+		<p />
+		<div>
+		<input type="checkbox" id="reload" name="reload">
+		<label for="reload">Reload Browser</label>
+		</div>
+		<p />
+		<input type="submit" value="Send URL">
+	</form>
+</body>
+</html>

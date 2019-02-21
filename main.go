@@ -73,98 +73,6 @@ var tvDropDown = userTVs{TV: showTVs}
 
 // ======================
 
-const loginTpl = `
-<!DOCTYPE html>
-<html>
-<head>
-	<title>Browser URL Control</title>
-
-	<style>
-	body {
-		background-color: #d3d4d5;
-		font-size: 16pt;
-	}
-	</style>
-</head>
-
-
-<body>
-	<h1>Browser URL Control</h1>
-	Login with your LDAP credentials. 
-	<p />
-	<form method="POST" action="/login">
-		Please fill in your LDAP username
-		<input type="text" name="username" placeholder="username">
-		<br>
-		Please fill in your LDAP password
-		<input type="password" name="password" placeholder="password">
-		<p />
-		<input type="submit" value="Login">
-	</form>
-</body>
-</html>`
-
-const tvTpl = `
-<!DOCTYPE html>
-<html>
-<head>
-	<title>Send to TV</title>
-	<style>
-	body {
-		background-color: #d3d4d5;
-		font-size: 16pt;
-	}
-	</style>
-
-</head>
-
-<body>
-	<form method="POST" action="/sendurl">
-		Please select the TV you want to send the URL
-		<select name="tv">
-		{{ range .TV -}}
-		<option value="{{.Host}}">{{.Name}}</option> 
-		{{ end }}
-		</select>
-		<p />
-		Please fill in the URL you want to send
-		<input type="text" name="url" size="100" placeholder="https://oliveai.com">
-		<p />
-		<div>
-		<input type="checkbox" id="reload" name="reload">
-		<label for="reload">Reload Browser</label>
-		</div>
-		<p />
-		<input type="submit" value="Send URL">
-	</form>
-</body>
-</html>`
-
-const errorTpl = `
-<!DOCTYPE html>
-<html>
-<head>
-	<title>Error</title>
-
-	<style>
-	body {
-		background-color: #d3d4d5;
-		font-size: 16pt;
-	}
-	</style>
-</head>
-
-
-<body>
-	<h1>There was an error</h1>
-	{{ . }} 
-	<p />
-	<a href='/'>Please click here to go back to the main page</a>
-</body>
-</html>`
-
-// ========================
-
 // method used to add user allowed TVs to struct for use
 // with the html dropdown template for sending a URL to
 // a TV
@@ -177,7 +85,7 @@ func homePage(res http.ResponseWriter, req *http.Request) {
 
 	if Config.LDAP.UseLDAP {
 
-		t, err := template.New("webpage").Parse(loginTpl)
+		t, err := template.ParseFiles("login.tmpl")
 		if err != nil {
 			log.Print(err)
 			return
@@ -199,11 +107,11 @@ func homePage(res http.ResponseWriter, req *http.Request) {
 		}
 
 		// Finally, we set the client cookie for "session_token" as the session token we just generated
-		// we also set an expiry time of 120 seconds
+		// we also set an expiry time of 600 seconds
 		http.SetCookie(res, &http.Cookie{
 			Name:    "session_token",
 			Value:   sessionToken.String(),
-			Expires: time.Now().Add(120 * time.Second),
+			Expires: time.Now().Add(600 * time.Second),
 		})
 
 		log.Println("/ redirect to /tv")
@@ -247,11 +155,11 @@ func login(res http.ResponseWriter, req *http.Request) {
 		}
 
 		// Finally, we set the client cookie for "session_token" as the session token we just generated
-		// we also set an expiry time of 120 seconds
+		// we also set an expiry time of 600 seconds
 		http.SetCookie(res, &http.Cookie{
 			Name:    "session_token",
 			Value:   sessionToken.String(),
-			Expires: time.Now().Add(120 * time.Second),
+			Expires: time.Now().Add(600 * time.Second),
 		})
 
 		//log.Printf("login cookie set with token: %s\n", sessionToken.String())
@@ -280,7 +188,7 @@ func listTVs(res http.ResponseWriter, req *http.Request) {
 	//sessionToken := c.Value
 	//log.Printf("tv: sessionToken: %s\n", sessionToken)
 
-	t, err := template.New("webpage").Parse(tvTpl)
+	t, err := template.ParseFiles("tv.tmpl")
 	if err != nil {
 		log.Print(err)
 		return
@@ -376,7 +284,7 @@ func errorHandler(res http.ResponseWriter, req *http.Request, status int) {
 		pageError = "For some reason that command could be run."
 	}
 
-	t, err := template.New("webpage").Parse(errorTpl)
+	t, err := template.ParseFiles("error.tmpl")
 	if err != nil {
 		log.Print(err)
 		return
