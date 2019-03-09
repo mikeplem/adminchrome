@@ -13,7 +13,7 @@
 
 <body>
 	<form method="POST" action="/sendurl">
-		Please select the TV you want to send the URL
+		Please select the TV you want to action.
 		<select name="tv">
 		{{ range .TV -}}
 		<option value="{{.Host}}">{{.Name}}</option> 
@@ -24,11 +24,19 @@
 		<input type="text" name="url" size="100" placeholder="https://oliveai.com">
 		<p />
 		<div>
-		<input type="checkbox" id="reload" name="reload">
-		<label for="reload">Reload Browser</label>
+		<input type="radio" id="action1" name="action" value="open" checked>
+		<label for="action1">Open URL</label>
+		</div>
+		<div>
+		<input type="radio" id="action2" name="action" value="reload">
+		<label for="action2">Reload Browser</label>
+		</div>
+		<div>
+		<input type="radio" id="action3" name="action" value="screenshot">
+		<label for="action3">Take Screenshot</label>
 		</div>
 		<p />
-		<input type="submit" value="Send URL">
+		<input type="submit" value="Submit Action">
 	</form>
 </body>
 </html>

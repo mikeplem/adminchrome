@@ -5,6 +5,7 @@ ssl = false
 cert = "wildcard_certificate"
 key = "wildcard_key"
 port = 8081
+cookietimeout = 600
 
 [remote]
 port = 8080

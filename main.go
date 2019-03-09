@@ -18,6 +18,8 @@ import (
 
 // ======================
 
+var cookietimeout time.Duration
+
 // ConfigFile holds the user supplied configuration file - it is placed here since it is a global
 var ConfigFile *string
 
@@ -32,10 +34,11 @@ type tomlConfig struct {
 }
 
 type listenconfig struct {
-	SSL  bool
-	Cert string
-	Key  string
-	Port int
+	SSL           bool
+	Cert          string
+	Key           string
+	Port          int
+	Cookietimeout time.Duration
 }
 
 type remoteconfig struct {
@@ -107,11 +110,11 @@ func homePage(res http.ResponseWriter, req *http.Request) {
 		}
 
 		// Finally, we set the client cookie for "session_token" as the session token we just generated
-		// we also set an expiry time of 600 seconds
+		// we also set an expiry time of Config.Listen.Cookietimeout seconds
 		http.SetCookie(res, &http.Cookie{
 			Name:    "session_token",
 			Value:   sessionToken.String(),
-			Expires: time.Now().Add(600 * time.Second),
+			Expires: time.Now().Add(cookietimeout),
 		})
 
 		log.Println("/ redirect to /tv")
@@ -155,11 +158,11 @@ func login(res http.ResponseWriter, req *http.Request) {
 		}
 
 		// Finally, we set the client cookie for "session_token" as the session token we just generated
-		// we also set an expiry time of 600 seconds
+		// we also set an expiry time of Config.Listen.Cookietimeout seconds
 		http.SetCookie(res, &http.Cookie{
 			Name:    "session_token",
 			Value:   sessionToken.String(),
-			Expires: time.Now().Add(600 * time.Second),
+			Expires: time.Now().Add(cookietimeout),
 		})
 
 		//log.Printf("login cookie set with token: %s\n", sessionToken.String())
@@ -218,7 +221,9 @@ func sendURL(res http.ResponseWriter, req *http.Request) {
 
 	tv := req.FormValue("tv")
 	urlToBrowser := req.FormValue("url")
-	reloadBrowser := req.FormValue("reload")
+	browserAction := req.FormValue("action")
+
+	log.Printf("Browser action to take: %s\n", browserAction)
 
 	// is the remote host and port accessible
 	remoteHost := fmt.Sprintf("%s:%d", tv, Config.Remote.Port)
@@ -231,7 +236,7 @@ func sendURL(res http.ResponseWriter, req *http.Request) {
 
 	defer conn.Close()
 
-	if reloadBrowser == "on" {
+	if browserAction == "reload" {
 
 		tvToReload := fmt.Sprintf("http://%s:%d/reload", tv, Config.Remote.Port)
 
@@ -246,16 +251,33 @@ func sendURL(res http.ResponseWriter, req *http.Request) {
 
 		http.Redirect(res, req, "/tv", 302)
 
-	} else {
+	} else if browserAction == "screenshot" {
+
+		tvToScreenshot := fmt.Sprintf("http://%s:%d/screenshot", tv, Config.Remote.Port)
+		tvToView := fmt.Sprintf("http://%s:%d/view", tv, Config.Remote.Port)
+
+		log.Printf("Taking screenshot: %v\n", tvToScreenshot)
+
+		resp, err := http.Get(tvToScreenshot)
+		if err != nil {
+			errorHandler(res, req, http.StatusNotFound)
+			return
+		}
+		defer resp.Body.Close()
+
+		log.Printf("Redirecting to %s", tvToView)
+		http.Redirect(res, req, tvToView, 302)
+
+	} else if browserAction == "open" {
+
+		tvToSend := fmt.Sprintf("http://%s:%d/open", tv, Config.Remote.Port)
 
 		log.Println(urlToBrowser)
 
 		postData := url.Values{}
 		postData.Set("u", urlToBrowser)
 
-		tvToSend := fmt.Sprintf("http://%s:%d/open", tv, Config.Remote.Port)
-
-		log.Printf("Sending the following: %v, %v\n", tvToSend, postData)
+		log.Printf("Sending the following: %s, %s\n", tvToSend, postData)
 
 		resp, err := http.PostForm(tvToSend, postData)
 		if err != nil {
@@ -263,7 +285,12 @@ func sendURL(res http.ResponseWriter, req *http.Request) {
 			return
 		}
 		defer resp.Body.Close()
+
+	} else {
+		errorHandler(res, req, 999)
+		return
 	}
+
 	http.Redirect(res, req, "/tv", 302)
 
 }
@@ -282,6 +309,8 @@ func errorHandler(res http.ResponseWriter, req *http.Request, status int) {
 		pageError = "Either you are not allowed to login via an LDAP group or your session cookie has expired (2 minute lifetime)."
 	case http.StatusBadRequest:
 		pageError = "For some reason that command could be run."
+	case 999:
+		pageError = "That action is not supported."
 	}
 
 	t, err := template.ParseFiles("error.tmpl")
@@ -316,6 +345,8 @@ func init() {
 			tvDropDown.AddItem(tvEntry)
 		}
 	}
+
+	cookietimeout = time.Duration(Config.Listen.Cookietimeout * time.Second)
 
 }
 

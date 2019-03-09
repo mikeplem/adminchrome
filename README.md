@@ -27,6 +27,7 @@ Use the appropriate build_ARCH.sh script
 * The listen port for the adminchrome web server
 * If you want to enable SSL or not
 * The path to the necessary SSL certs if you want SSL
+* The expiry seconds for the session cookie
 
 ### LDAP
 
@@ -61,7 +62,7 @@ Usage of ./adminchrome_mac:
 
 ### Listen Section
 
-This section is used to configure the port you want the web interface for this tool to listen.  It is also where you configure SSL support.
+This section is used to configure the port you want the web interface for this tool to listen.  It is also where you configure SSL support.  When a user logs in a session cookie is created and it will expire after cookietimeout seconds.
 
 ```shell
 [listen]
@@ -69,6 +70,7 @@ ssl = false
 cert = "wildcard_certificate"
 key = "wildcard_key"
 port = 8081
+cookietimeout = 600
 ```
 
 ### Remote Section
